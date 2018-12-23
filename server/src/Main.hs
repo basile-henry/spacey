@@ -50,8 +50,7 @@ url = "localhost:" <> Text.pack (show port)
 
 main :: IO ()
 main = do
-  let port = 1234
-      settings = Warp.setPort port Warp.defaultSettings
+  let settings = Warp.setPort port Warp.defaultSettings
 
   count <- liftIO $ newIORef 0
   chan <- newTChanIO
@@ -98,10 +97,8 @@ wsapp count chan pending = do
 
     forever $ do
       Control index btn <- atomically $ readTChan chan
-      WS.sendTextData conn ([i|
-        { index : #{ index }
-        , button : # { btn }
-        }|] :: Text)
+      WS.sendTextData conn
+        ([i|{ index : #{ index }, button : # { btn } }|] :: Text)
 
 controller :: Int -> ActionM ()
 controller index = Sc.html [i|
@@ -115,14 +112,15 @@ controller index = Sc.html [i|
       img { width: 100%; }
     </style>
     <script language="javascript">
+      console.log(#{ index });
       function sendBtnClick(btn) {
         var xmlHttp = new XMLHttpRequest();
         var url = "/click/#{ index }/" + btn;
-        console.log(url);
         xmlHttp.open( "PUT", url, true );
         xmlHttp.send( null );
       };
     </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
   </head>
   <body>
     <div><img src="res/left.png"  onpointerdown=sendBtnClick("left")  /></div>
