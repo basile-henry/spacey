@@ -24,6 +24,7 @@ import qualified Network.Wai.Handler.Warp             as Warp
 import qualified Network.Wai.Handler.WebSockets       as WaiWs
 import qualified Network.Wai.Middleware.Gzip          as Wai
 import qualified Network.Wai.Middleware.RequestLogger as Wai
+import qualified Network.Wai.Middleware.Static        as Wai
 import qualified Network.WebSockets                   as WS
 import           Web.Scotty                           (ActionM, ScottyM)
 import qualified Web.Scotty                           as Sc
@@ -64,8 +65,12 @@ scottyApp :: IORef Int -> TChan Control -> ScottyM ()
 scottyApp countRef chan = do
   Sc.middleware $ Wai.gzip $ Wai.def { Wai.gzipFiles = Wai.GzipCompress }
   Sc.middleware Wai.logStdoutDev
+  Sc.middleware $ Wai.staticPolicy
+    (Wai.noDots Wai.>-> Wai.addBase "res" Wai.>-> Wai.addBase "client/site")
 
-  Sc.get "/" $ do
+  Sc.get "/" $ Sc.redirect "/client/site/index.html"
+
+  Sc.get "/controller" $ do
     count <- liftIO $ atomicModifyIORef' countRef (\x -> (succ x, x))
     controller count
 
@@ -75,13 +80,6 @@ scottyApp countRef chan = do
     liftIO . atomically . writeTChan chan $ Control index btn
 
   Sc.get "/favicon.ico" $ pure ()
-
-  mapM_
-    (\img -> Sc.get (Sc.literal $ "/res/" <> img) $ Sc.file ("res/" <> img))
-    [ "left.png"
-    , "right.png"
-    , "shoot.png"
-    ]
 
 wsapp :: IORef Int -> TChan Control -> WS.ServerApp
 wsapp count chan pending = do
