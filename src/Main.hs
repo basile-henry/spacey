@@ -29,7 +29,7 @@ import qualified Network.WebSockets                   as WS
 import           Web.Scotty                           (ActionM, ScottyM)
 import qualified Web.Scotty                           as Sc
 
-data Control = Control Int Btn deriving (Show, Eq)
+data Control = Control Int Btn State deriving (Show, Eq)
 
 data Btn
   = Left
@@ -41,7 +41,17 @@ instance Sc.Parsable Btn where
   parseParam "left"  = Prelude.Right Main.Left
   parseParam "shoot" = Prelude.Right Shoot
   parseParam "right" = Prelude.Right Main.Right
-  parseParam btn     = Prelude.Left $ "Not a button " <> btn
+  parseParam btn     = Prelude.Left $ "Not a button: " <> btn
+
+data State
+  = Up
+  | Down
+  deriving (Show, Eq)
+
+instance Sc.Parsable State where
+  parseParam "up"   = Prelude.Right Up
+  parseParam "down" = Prelude.Right Down
+  parseParam state  = Prelude.Left $ "Not a state: " <> state
 
 port :: Int
 port = 1234
@@ -70,13 +80,14 @@ scottyApp countRef chan = do
   Sc.get "/" $ Sc.redirect "/site/index.html"
 
   Sc.get "/controller" $ do
-    count <- liftIO $ atomicModifyIORef' countRef (\x -> (succ x, x))
+    count <- liftIO $ atomicModifyIORef' countRef (\x -> (succ x`mod` 4, x))
     controller count
 
-  Sc.put "/click/:index/:btn" $ do
+  Sc.put "/click/:index/:btn/:state" $ do
     index <- Sc.param "index"
     btn   <- Sc.param "btn"
-    liftIO . atomically . writeTChan chan $ Control index btn
+    state <- Sc.param "state"
+    liftIO . atomically . writeTChan chan $ Control index btn state
 
   Sc.get "/favicon.ico" $ pure ()
 
@@ -86,16 +97,14 @@ wsapp count chan pending = do
   conn <- WS.acceptRequest pending
 
   handle
-    (\e -> do
-      hPrint stderr (e :: WS.ConnectionException)
-      atomicWriteIORef count 0) $ do
+    (\e -> hPrint stderr (e :: WS.ConnectionException)) $ do
 
     WS.forkPingThread conn 30
 
     forever $ do
-      Control index btn <- atomically $ readTChan chan
+      Control index btn state <- atomically $ readTChan chan
       WS.sendTextData conn
-        ([i|{ "index" : #{ index }, "button" : "#{ btn }" }|] :: Text)
+        ([i|{ "index": #{ index }, "button": "#{ btn }", "state": "#{ state }" }|] :: Text)
 
 controller :: Int -> ActionM ()
 controller index = Sc.html [i|
@@ -110,19 +119,46 @@ controller index = Sc.html [i|
     </style>
     <script language="javascript">
       console.log(#{ index });
-      function sendBtnClick(btn) {
+
+      function send(btn, state) {
         var xmlHttp = new XMLHttpRequest();
-        var url = "/click/#{ index }/" + btn;
+        var url = "/click/#{ index }/" + btn + "/" + state;
         xmlHttp.open( "PUT", url, true );
         xmlHttp.send( null );
+      };
+
+      function pointerUp(btn) {
+        send(btn, "up");
+      };
+
+      function pointerDown(btn) {
+        send(btn, "down");
       };
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
   </head>
   <body>
-    <div><img src="res/left.png"  onpointerdown=sendBtnClick("left")  /></div>
-    <div><img src="res/shoot.png" onpointerdown=sendBtnClick("shoot") /></div>
-    <div><img src="res/right.png" onpointerdown=sendBtnClick("right") /></div>
+    <div>
+      <img src="res/left.png"
+           ontouchstart=pointerDown("left")
+           ontouchend=pointerUp("left")
+           ontouchcancel=pointerUp("left")
+           oncontextmenu="return false"
+           /></div>
+    <div>
+      <img src="res/shoot.png"
+           ontouchstart=pointerDown("shoot")
+           ontouchend=pointerUp("shoot")
+           ontouchcancel=pointerUp("shoot")
+           oncontextmenu="return false"
+           /></div>
+    <div>
+      <img src="res/right.png"
+           ontouchstart=pointerDown("right")
+           ontouchend=pointerUp("right")
+           ontouchcancel=pointerUp("right")
+           oncontextmenu="return false"
+           /></div>
   </body>
 </html>
 |]

@@ -1,12 +1,15 @@
 port module Main exposing (main)
 
 import Browser
+import Browser.Events
 import Cmd.Extra exposing (withCmd, withNoCmd)
+import Control
 import Html exposing (Html, a, button, div, h1, input, p, text)
 import Html.Attributes exposing (href, size, value)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as Json
 import Json.Encode exposing (Value, encode)
+import List.Extra as List
 import Svg exposing (Svg)
 import Svg.Attributes as Svg
 
@@ -37,6 +40,7 @@ subscriptions model =
     Sub.batch
         [ subPort Receive
         , parseReturn Process
+        , Browser.Events.onAnimationFrameDelta Tick
         ]
 
 
@@ -45,13 +49,24 @@ subscriptions model =
 
 
 type alias Model =
-    { x : Int
+    { players : List Player
     }
+
+
+playerWidth : Float
+playerWidth =
+    20
 
 
 init : () -> ( Model, Cmd Msg )
 init flags =
-    ( { x = 40
+    ( { players =
+            List.repeat 4
+                { x = 50 - playerWidth / 2
+                , left = False
+                , right = False
+                , shoot = False
+                }
       }
     , parse
         """
@@ -60,60 +75,12 @@ init flags =
     )
 
 
-type Button
-    = Left
-    | Shoot
-    | Right
-
-
-type alias Control =
-    { player : Int
-    , button : Button
+type alias Player =
+    { x : Float
+    , left : Bool
+    , right : Bool
+    , shoot : Bool
     }
-
-
-control : Value -> Result Json.Error Control
-control value =
-    let
-        buttonDecoder =
-            Json.string
-                |> Json.andThen
-                    (\btn ->
-                        case btn of
-                            "Left" ->
-                                Json.succeed Left
-
-                            "Shoot" ->
-                                Json.succeed Shoot
-
-                            "Right" ->
-                                Json.succeed Right
-
-                            _ ->
-                                Json.fail btn
-                    )
-
-        controlDecoder =
-            Json.map2
-                Control
-                (Json.field "index" Json.int)
-                (Json.field "button" buttonDecoder)
-
-        responseDecoder =
-            Json.map2
-                (\tag msg -> ( tag, msg ))
-                (Json.field "tag" Json.string)
-                (Json.at [ "args", "message" ] Json.string)
-                |> Json.andThen
-                    (\( tag, msg ) ->
-                        if tag == "messageReceived" then
-                            Json.succeed msg
-                        else
-                            Json.fail tag
-                    )
-    in
-    Json.decodeValue responseDecoder value
-        |> Result.andThen (Json.decodeString controlDecoder)
 
 
 
@@ -123,61 +90,116 @@ control value =
 type Msg
     = Receive Value
     | Process Value
+    | Tick Float
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        Tick dt ->
+            tick dt model
+
         Process value ->
             model
                 |> Debug.log ("Process: " ++ encode 0 value)
                 |> withCmd (cmdPort value)
 
         Receive value ->
-            case control value of
+            case Control.control value of
                 Err err ->
                     model
                         |> Debug.log (Json.errorToString err)
                         |> withNoCmd
 
                 Ok ctrl ->
+                    let
+                        state =
+                            case ctrl.state of
+                                Control.Down ->
+                                    True
+
+                                Control.Up ->
+                                    False
+                    in
                     { model
-                        | x =
-                            case ctrl.button of
-                                Left ->
-                                    model.x - 5
+                        | players =
+                            List.update ctrl.player
+                                (\p ->
+                                    case ctrl.button of
+                                        Control.Left ->
+                                            { p | left = state }
 
-                                Right ->
-                                    model.x + 5
+                                        Control.Right ->
+                                            { p | right = state }
 
-                                Shoot ->
-                                    model.x
+                                        Control.Shoot ->
+                                            { p | shoot = state }
+                                )
+                                model.players
                     }
                         |> withNoCmd
+
+
+tickPlayer : Float -> Player -> ( Player, Cmd Msg )
+tickPlayer dt player =
+    let
+        dx =
+            dt / 30
+    in
+    { player
+        | x =
+            case ( player.left, player.right ) of
+                ( True, False ) ->
+                    max -(playerWidth / 2) (player.x - dx)
+
+                ( False, True ) ->
+                    min (100 - playerWidth / 2) (player.x + dx)
+
+                _ ->
+                    player.x
+    }
+        |> withNoCmd
+
+
+tick : Float -> Model -> ( Model, Cmd Msg )
+tick dt model =
+    let
+        ( players, cmds ) =
+            model.players
+                |> List.map (tickPlayer dt)
+                |> List.unzip
+    in
+    ( { model | players = players }
+    , Cmd.batch cmds
+    )
 
 
 
 -- VIEW
 
 
-monsterView : Int -> Int -> ( Int, Int ) -> Svg msg
+monsterView : Int -> Float -> ( Float, Float ) -> Svg msg
 monsterView n width ( x, y ) =
     Svg.image
         [ Svg.xlinkHref ("/res/monster/" ++ String.fromInt n ++ ".png")
-        , Svg.x (String.fromInt x)
-        , Svg.y (String.fromInt y)
-        , Svg.width (String.fromInt width)
+        , Svg.x (String.fromFloat x)
+        , Svg.y (String.fromFloat y)
+        , Svg.width (String.fromFloat width)
         ]
         []
 
 
 view : Model -> Html Msg
 view model =
+    let
+        monsters =
+            List.indexedMap
+                (\i p -> monsterView i playerWidth ( p.x, 100 - playerWidth ))
+                model.players
+    in
     Svg.svg
         [ Svg.width "100%", Svg.height "100%", Svg.viewBox "0 0 100 100" ]
-        [ Svg.rect [ Svg.fill "gray", Svg.width "100", Svg.height "100" ] []
-        , monsterView 0 20 ( model.x, 40 )
-        , monsterView 1 20 ( 20, 5 )
-        , monsterView 2 20 ( 40, 5 )
-        , monsterView 3 20 ( 60, 5 )
-        ]
+        ([ Svg.rect [ Svg.fill "gray", Svg.width "100", Svg.height "100" ] []
+         ]
+            ++ monsters
+        )
