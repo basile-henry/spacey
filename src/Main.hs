@@ -65,10 +65,9 @@ scottyApp :: IORef Int -> TChan Control -> ScottyM ()
 scottyApp countRef chan = do
   Sc.middleware $ Wai.gzip $ Wai.def { Wai.gzipFiles = Wai.GzipCompress }
   Sc.middleware Wai.logStdoutDev
-  Sc.middleware $ Wai.staticPolicy
-    (Wai.noDots Wai.>-> Wai.addBase "res" Wai.>-> Wai.addBase "client/site")
+  Sc.middleware $ Wai.staticPolicy (Wai.noDots Wai.>-> Wai.addBase ".")
 
-  Sc.get "/" $ Sc.redirect "/client/site/index.html"
+  Sc.get "/" $ Sc.redirect "/site/index.html"
 
   Sc.get "/controller" $ do
     count <- liftIO $ atomicModifyIORef' countRef (\x -> (succ x, x))
@@ -96,7 +95,7 @@ wsapp count chan pending = do
     forever $ do
       Control index btn <- atomically $ readTChan chan
       WS.sendTextData conn
-        ([i|{ index : #{ index }, button : # { btn } }|] :: Text)
+        ([i|{ "index" : #{ index }, "button" : "#{ btn }" }|] :: Text)
 
 controller :: Int -> ActionM ()
 controller index = Sc.html [i|

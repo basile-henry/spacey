@@ -4310,15 +4310,11 @@ function _Browser_load(url)
 		}
 	}));
 }
-var elm$core$Basics$False = {$: 'False'};
-var elm$core$Basics$True = {$: 'True'};
-var elm$core$Result$isOk = function (result) {
-	if (result.$ === 'Ok') {
-		return true;
-	} else {
-		return false;
-	}
-};
+var elm$core$Array$branchFactor = 32;
+var elm$core$Array$Array_elm_builtin = F4(
+	function (a, b, c, d) {
+		return {$: 'Array_elm_builtin', a: a, b: b, c: c, d: d};
+	});
 var elm$core$Basics$EQ = {$: 'EQ'};
 var elm$core$Basics$GT = {$: 'GT'};
 var elm$core$Basics$LT = {$: 'LT'};
@@ -4399,11 +4395,6 @@ var elm$core$Array$foldr = F3(
 var elm$core$Array$toList = function (array) {
 	return A3(elm$core$Array$foldr, elm$core$List$cons, _List_Nil, array);
 };
-var elm$core$Array$branchFactor = 32;
-var elm$core$Array$Array_elm_builtin = F4(
-	function (a, b, c, d) {
-		return {$: 'Array_elm_builtin', a: a, b: b, c: c, d: d};
-	});
 var elm$core$Basics$ceiling = _Basics_ceiling;
 var elm$core$Basics$fdiv = _Basics_fdiv;
 var elm$core$Basics$logBase = F2(
@@ -4528,6 +4519,7 @@ var elm$core$Array$builderToArray = F2(
 				builder.tail);
 		}
 	});
+var elm$core$Basics$False = {$: 'False'};
 var elm$core$Basics$idiv = _Basics_idiv;
 var elm$core$Basics$lt = _Utils_lt;
 var elm$core$Elm$JsArray$initialize = _JsArray_initialize;
@@ -4579,6 +4571,14 @@ var elm$core$Result$Err = function (a) {
 };
 var elm$core$Result$Ok = function (a) {
 	return {$: 'Ok', a: a};
+};
+var elm$core$Basics$True = {$: 'True'};
+var elm$core$Result$isOk = function (result) {
+	if (result.$ === 'Ok') {
+		return true;
+	} else {
+		return false;
+	}
 };
 var elm$json$Json$Decode$Failure = F2(
 	function (a, b) {
@@ -4785,16 +4785,12 @@ var elm$json$Json$Decode$errorToStringHelp = F2(
 			}
 		}
 	});
-var elm$core$Platform$Cmd$batch = _Platform_batch;
-var elm$core$Platform$Cmd$none = elm$core$Platform$Cmd$batch(_List_Nil);
-var Janiczek$cmd_extra$Cmd$Extra$withNoCmd = function (model) {
-	return _Utils_Tuple2(model, elm$core$Platform$Cmd$none);
-};
-var elm$core$String$trim = _String_trim;
-var author$project$Main$openJson = elm$core$String$trim('\n         {"module": "WebSocket", "tag": "open", "args": {"key": "foo", "url": "wss://echo.websocket.org"}}\n        ');
+var elm$json$Json$Encode$string = _Json_wrap;
+var author$project$Main$parse = _Platform_outgoingPort('parse', elm$json$Json$Encode$string);
 var author$project$Main$init = function (flags) {
-	return Janiczek$cmd_extra$Cmd$Extra$withNoCmd(
-		{log: _List_Nil, send: author$project$Main$openJson});
+	return _Utils_Tuple2(
+		{x: 40},
+		author$project$Main$parse('\n        { "module": "WebSocket", "tag": "open", "args": {"key": "foo", "url": "ws://localhost:1234"} }\n        '));
 };
 var author$project$Main$Process = function (a) {
 	return {$: 'Process', a: a};
@@ -4818,121 +4814,33 @@ var Janiczek$cmd_extra$Cmd$Extra$withCmd = F2(
 	function (cmd, model) {
 		return _Utils_Tuple2(model, cmd);
 	});
+var elm$core$Platform$Cmd$batch = _Platform_batch;
+var elm$core$Platform$Cmd$none = elm$core$Platform$Cmd$batch(_List_Nil);
+var Janiczek$cmd_extra$Cmd$Extra$withNoCmd = function (model) {
+	return _Utils_Tuple2(model, elm$core$Platform$Cmd$none);
+};
 var elm$core$Basics$identity = function (x) {
 	return x;
 };
 var author$project$Main$cmdPort = _Platform_outgoingPort('cmdPort', elm$core$Basics$identity);
-var elm$json$Json$Encode$string = _Json_wrap;
-var author$project$Main$parse = _Platform_outgoingPort('parse', elm$json$Json$Encode$string);
-var author$project$Main$update = F2(
-	function (msg, model) {
-		switch (msg.$) {
-			case 'UpdateSend':
-				var send = msg.a;
-				return Janiczek$cmd_extra$Cmd$Extra$withNoCmd(
-					_Utils_update(
-						model,
-						{send: send}));
-			case 'Send':
-				return A2(
-					Janiczek$cmd_extra$Cmd$Extra$withCmd,
-					author$project$Main$parse(model.send),
-					model);
-			case 'Process':
-				var value = msg.a;
-				return A2(
-					Janiczek$cmd_extra$Cmd$Extra$withCmd,
-					author$project$Main$cmdPort(value),
-					_Utils_update(
-						model,
-						{
-							log: A2(
-								elm$core$List$cons,
-								'send: ' + A2(elm$json$Json$Encode$encode, 0, value),
-								model.log)
-						}));
-			default:
-				var value = msg.a;
-				var log = A2(
-					elm$core$List$cons,
-					'recv: ' + A2(elm$json$Json$Encode$encode, 0, value),
-					model.log);
-				return Janiczek$cmd_extra$Cmd$Extra$withNoCmd(
-					_Utils_update(
-						model,
-						{log: log}));
+var author$project$Main$Control = F2(
+	function (player, button) {
+		return {button: button, player: player};
+	});
+var author$project$Main$Left = {$: 'Left'};
+var author$project$Main$Right = {$: 'Right'};
+var author$project$Main$Shoot = {$: 'Shoot'};
+var elm$core$Result$andThen = F2(
+	function (callback, result) {
+		if (result.$ === 'Ok') {
+			var value = result.a;
+			return callback(value);
+		} else {
+			var msg = result.a;
+			return elm$core$Result$Err(msg);
 		}
 	});
-var author$project$Main$Send = {$: 'Send'};
-var author$project$Main$UpdateSend = function (a) {
-	return {$: 'UpdateSend', a: a};
-};
-var elm$json$Json$Decode$map = _Json_map1;
-var elm$json$Json$Decode$map2 = _Json_map2;
-var elm$json$Json$Decode$succeed = _Json_succeed;
-var elm$virtual_dom$VirtualDom$toHandlerInt = function (handler) {
-	switch (handler.$) {
-		case 'Normal':
-			return 0;
-		case 'MayStopPropagation':
-			return 1;
-		case 'MayPreventDefault':
-			return 2;
-		default:
-			return 3;
-	}
-};
-var elm$html$Html$b = _VirtualDom_node('b');
-var elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
-var elm$html$Html$text = elm$virtual_dom$VirtualDom$text;
-var author$project$Main$b = function (string) {
-	return A2(
-		elm$html$Html$b,
-		_List_Nil,
-		_List_fromArray(
-			[
-				elm$html$Html$text(string)
-			]));
-};
-var elm$html$Html$br = _VirtualDom_node('br');
-var author$project$Main$br = A2(elm$html$Html$br, _List_Nil, _List_Nil);
-var author$project$Main$bytesQueuedJson = elm$core$String$trim('\n         {"module": "WebSocket", "tag": "getBytesQueued", "args": {"key": "foo"}}\n        ');
-var author$project$Main$closeJson = elm$core$String$trim('\n         {"module": "WebSocket", "tag": "close", "args": {"key": "foo", "reason": "Just because."}}\n        ');
-var author$project$Main$delayJson = elm$core$String$trim('\n         {"module": "WebSocket", "tag": "delay", "args": {"millis": "500", "id": "23"}}\n        ');
-var author$project$Main$sendJson = elm$core$String$trim('\n       {"module": "WebSocket", "tag": "send", "args": {"key": "foo", "message": "Hello, World!"}}\n      ');
-var author$project$Main$exampleJsons = _List_fromArray(
-	[author$project$Main$sendJson, author$project$Main$bytesQueuedJson, author$project$Main$closeJson, author$project$Main$delayJson, author$project$Main$openJson]);
-var elm$html$Html$a = _VirtualDom_node('a');
-var elm$virtual_dom$VirtualDom$Normal = function (a) {
-	return {$: 'Normal', a: a};
-};
-var elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
-var elm$html$Html$Events$on = F2(
-	function (event, decoder) {
-		return A2(
-			elm$virtual_dom$VirtualDom$on,
-			event,
-			elm$virtual_dom$VirtualDom$Normal(decoder));
-	});
-var elm$html$Html$Events$onClick = function (msg) {
-	return A2(
-		elm$html$Html$Events$on,
-		'click',
-		elm$json$Json$Decode$succeed(msg));
-};
-var author$project$Main$sendSample = function (sample) {
-	return A2(
-		elm$html$Html$a,
-		_List_fromArray(
-			[
-				elm$html$Html$Events$onClick(
-				author$project$Main$UpdateSend(sample))
-			]),
-		_List_fromArray(
-			[
-				elm$html$Html$text(sample)
-			]));
-};
+var elm$json$Json$Decode$andThen = _Json_andThen;
 var elm$core$List$foldrHelper = F4(
 	function (fn, acc, ctr, ls) {
 		if (!ls.b) {
@@ -4988,172 +4896,195 @@ var elm$core$List$foldr = F3(
 	function (fn, acc, ls) {
 		return A4(elm$core$List$foldrHelper, fn, acc, 0, ls);
 	});
-var elm$core$List$append = F2(
-	function (xs, ys) {
-		if (!ys.b) {
-			return xs;
-		} else {
-			return A3(elm$core$List$foldr, elm$core$List$cons, ys, xs);
-		}
-	});
-var elm$core$List$concat = function (lists) {
-	return A3(elm$core$List$foldr, elm$core$List$append, _List_Nil, lists);
-};
-var elm$core$List$intersperse = F2(
-	function (sep, xs) {
-		if (!xs.b) {
-			return _List_Nil;
-		} else {
-			var hd = xs.a;
-			var tl = xs.b;
-			var step = F2(
-				function (x, rest) {
-					return A2(
-						elm$core$List$cons,
-						sep,
-						A2(elm$core$List$cons, x, rest));
-				});
-			var spersed = A3(elm$core$List$foldr, step, _List_Nil, tl);
-			return A2(elm$core$List$cons, hd, spersed);
-		}
-	});
-var elm$core$List$map = F2(
-	function (f, xs) {
-		return A3(
-			elm$core$List$foldr,
-			F2(
-				function (x, acc) {
-					return A2(
-						elm$core$List$cons,
-						f(x),
-						acc);
-				}),
-			_List_Nil,
-			xs);
-	});
-var elm$html$Html$button = _VirtualDom_node('button');
-var elm$html$Html$div = _VirtualDom_node('div');
-var elm$html$Html$h1 = _VirtualDom_node('h1');
-var elm$html$Html$input = _VirtualDom_node('input');
-var elm$html$Html$p = _VirtualDom_node('p');
-var elm$html$Html$Attributes$size = function (n) {
-	return A2(
-		_VirtualDom_attribute,
-		'size',
-		elm$core$String$fromInt(n));
-};
-var elm$html$Html$Attributes$stringProperty = F2(
-	function (key, string) {
-		return A2(
-			_VirtualDom_property,
-			key,
-			elm$json$Json$Encode$string(string));
-	});
-var elm$html$Html$Attributes$value = elm$html$Html$Attributes$stringProperty('value');
-var elm$html$Html$Events$alwaysStop = function (x) {
-	return _Utils_Tuple2(x, true);
-};
-var elm$virtual_dom$VirtualDom$MayStopPropagation = function (a) {
-	return {$: 'MayStopPropagation', a: a};
-};
-var elm$html$Html$Events$stopPropagationOn = F2(
-	function (event, decoder) {
-		return A2(
-			elm$virtual_dom$VirtualDom$on,
-			event,
-			elm$virtual_dom$VirtualDom$MayStopPropagation(decoder));
-	});
 var elm$json$Json$Decode$field = _Json_decodeField;
 var elm$json$Json$Decode$at = F2(
 	function (fields, decoder) {
 		return A3(elm$core$List$foldr, elm$json$Json$Decode$field, decoder, fields);
 	});
+var elm$json$Json$Decode$decodeString = _Json_runOnString;
+var elm$json$Json$Decode$decodeValue = _Json_run;
+var elm$json$Json$Decode$fail = _Json_fail;
+var elm$json$Json$Decode$int = _Json_decodeInt;
+var elm$json$Json$Decode$map2 = _Json_map2;
 var elm$json$Json$Decode$string = _Json_decodeString;
-var elm$html$Html$Events$targetValue = A2(
-	elm$json$Json$Decode$at,
-	_List_fromArray(
-		['target', 'value']),
-	elm$json$Json$Decode$string);
-var elm$html$Html$Events$onInput = function (tagger) {
+var elm$json$Json$Decode$succeed = _Json_succeed;
+var author$project$Main$control = function (value) {
+	var responseDecoder = A2(
+		elm$json$Json$Decode$andThen,
+		function (_n1) {
+			var tag = _n1.a;
+			var msg = _n1.b;
+			return (tag === 'messageReceived') ? elm$json$Json$Decode$succeed(msg) : elm$json$Json$Decode$fail(tag);
+		},
+		A3(
+			elm$json$Json$Decode$map2,
+			F2(
+				function (tag, msg) {
+					return _Utils_Tuple2(tag, msg);
+				}),
+			A2(elm$json$Json$Decode$field, 'tag', elm$json$Json$Decode$string),
+			A2(
+				elm$json$Json$Decode$at,
+				_List_fromArray(
+					['args', 'message']),
+				elm$json$Json$Decode$string)));
+	var buttonDecoder = A2(
+		elm$json$Json$Decode$andThen,
+		function (btn) {
+			switch (btn) {
+				case 'Left':
+					return elm$json$Json$Decode$succeed(author$project$Main$Left);
+				case 'Shoot':
+					return elm$json$Json$Decode$succeed(author$project$Main$Shoot);
+				case 'Right':
+					return elm$json$Json$Decode$succeed(author$project$Main$Right);
+				default:
+					return elm$json$Json$Decode$fail(btn);
+			}
+		},
+		elm$json$Json$Decode$string);
+	var controlDecoder = A3(
+		elm$json$Json$Decode$map2,
+		author$project$Main$Control,
+		A2(elm$json$Json$Decode$field, 'index', elm$json$Json$Decode$int),
+		A2(elm$json$Json$Decode$field, 'button', buttonDecoder));
 	return A2(
-		elm$html$Html$Events$stopPropagationOn,
-		'input',
-		A2(
-			elm$json$Json$Decode$map,
-			elm$html$Html$Events$alwaysStop,
-			A2(elm$json$Json$Decode$map, tagger, elm$html$Html$Events$targetValue)));
+		elm$core$Result$andThen,
+		elm$json$Json$Decode$decodeString(controlDecoder),
+		A2(elm$json$Json$Decode$decodeValue, responseDecoder, value));
 };
+var elm$core$Debug$log = _Debug_log;
+var author$project$Main$update = F2(
+	function (msg, model) {
+		if (msg.$ === 'Process') {
+			var value = msg.a;
+			return A2(
+				Janiczek$cmd_extra$Cmd$Extra$withCmd,
+				author$project$Main$cmdPort(value),
+				A2(
+					elm$core$Debug$log,
+					'Process: ' + A2(elm$json$Json$Encode$encode, 0, value),
+					model));
+		} else {
+			var value = msg.a;
+			var _n1 = author$project$Main$control(value);
+			if (_n1.$ === 'Err') {
+				var err = _n1.a;
+				return Janiczek$cmd_extra$Cmd$Extra$withNoCmd(
+					A2(
+						elm$core$Debug$log,
+						elm$json$Json$Decode$errorToString(err),
+						model));
+			} else {
+				var ctrl = _n1.a;
+				return Janiczek$cmd_extra$Cmd$Extra$withNoCmd(
+					_Utils_update(
+						model,
+						{
+							x: function () {
+								var _n2 = ctrl.button;
+								switch (_n2.$) {
+									case 'Left':
+										return model.x - 5;
+									case 'Right':
+										return model.x + 5;
+									default:
+										return model.x;
+								}
+							}()
+						}));
+			}
+		}
+	});
+var elm$json$Json$Decode$map = _Json_map1;
+var elm$virtual_dom$VirtualDom$toHandlerInt = function (handler) {
+	switch (handler.$) {
+		case 'Normal':
+			return 0;
+		case 'MayStopPropagation':
+			return 1;
+		case 'MayPreventDefault':
+			return 2;
+		default:
+			return 3;
+	}
+};
+var elm$svg$Svg$trustedNode = _VirtualDom_nodeNS('http://www.w3.org/2000/svg');
+var elm$svg$Svg$image = elm$svg$Svg$trustedNode('image');
+var elm$svg$Svg$Attributes$width = _VirtualDom_attribute('width');
+var elm$svg$Svg$Attributes$x = _VirtualDom_attribute('x');
+var elm$svg$Svg$Attributes$xlinkHref = function (value) {
+	return A3(
+		_VirtualDom_attributeNS,
+		'http://www.w3.org/1999/xlink',
+		'xlink:href',
+		_VirtualDom_noJavaScriptUri(value));
+};
+var elm$svg$Svg$Attributes$y = _VirtualDom_attribute('y');
+var author$project$Main$monsterView = F3(
+	function (n, width, _n0) {
+		var x = _n0.a;
+		var y = _n0.b;
+		return A2(
+			elm$svg$Svg$image,
+			_List_fromArray(
+				[
+					elm$svg$Svg$Attributes$xlinkHref(
+					'/res/monster/' + (elm$core$String$fromInt(n) + '.png')),
+					elm$svg$Svg$Attributes$x(
+					elm$core$String$fromInt(x)),
+					elm$svg$Svg$Attributes$y(
+					elm$core$String$fromInt(y)),
+					elm$svg$Svg$Attributes$width(
+					elm$core$String$fromInt(width))
+				]),
+			_List_Nil);
+	});
+var elm$svg$Svg$rect = elm$svg$Svg$trustedNode('rect');
+var elm$svg$Svg$svg = elm$svg$Svg$trustedNode('svg');
+var elm$svg$Svg$Attributes$fill = _VirtualDom_attribute('fill');
+var elm$svg$Svg$Attributes$height = _VirtualDom_attribute('height');
+var elm$svg$Svg$Attributes$viewBox = _VirtualDom_attribute('viewBox');
 var author$project$Main$view = function (model) {
 	return A2(
-		elm$html$Html$div,
-		_List_Nil,
+		elm$svg$Svg$svg,
+		_List_fromArray(
+			[
+				elm$svg$Svg$Attributes$width('100%'),
+				elm$svg$Svg$Attributes$height('100%'),
+				elm$svg$Svg$Attributes$viewBox('0 0 100 100')
+			]),
 		_List_fromArray(
 			[
 				A2(
-				elm$html$Html$h1,
-				_List_Nil,
+				elm$svg$Svg$rect,
 				_List_fromArray(
 					[
-						elm$html$Html$text('WebSocketClient Test Console')
-					])),
-				A2(
-				elm$html$Html$p,
-				_List_Nil,
-				_List_fromArray(
-					[
-						A2(
-						elm$html$Html$input,
-						_List_fromArray(
-							[
-								elm$html$Html$Attributes$value(model.send),
-								elm$html$Html$Events$onInput(author$project$Main$UpdateSend),
-								elm$html$Html$Attributes$size(100)
-							]),
-						_List_Nil),
-						elm$html$Html$text(' '),
-						A2(
-						elm$html$Html$button,
-						_List_fromArray(
-							[
-								elm$html$Html$Events$onClick(author$project$Main$Send)
-							]),
-						_List_fromArray(
-							[
-								elm$html$Html$text('Send')
-							]))
-					])),
-				A2(
-				elm$html$Html$p,
-				_List_Nil,
-				elm$core$List$concat(
-					_List_fromArray(
-						[
-							_List_fromArray(
-							[
-								author$project$Main$b('Sample messages (click to copy):'),
-								author$project$Main$br
-							]),
-							A2(
-							elm$core$List$intersperse,
-							author$project$Main$br,
-							A2(elm$core$List$map, author$project$Main$sendSample, author$project$Main$exampleJsons))
-						]))),
-				A2(
-				elm$html$Html$p,
-				_List_Nil,
-				elm$core$List$concat(
-					_List_fromArray(
-						[
-							_List_fromArray(
-							[
-								author$project$Main$b('Log:'),
-								author$project$Main$br
-							]),
-							A2(
-							elm$core$List$intersperse,
-							author$project$Main$br,
-							A2(elm$core$List$map, elm$html$Html$text, model.log))
-						])))
+						elm$svg$Svg$Attributes$fill('gray'),
+						elm$svg$Svg$Attributes$width('100'),
+						elm$svg$Svg$Attributes$height('100')
+					]),
+				_List_Nil),
+				A3(
+				author$project$Main$monsterView,
+				0,
+				20,
+				_Utils_Tuple2(model.x, 40)),
+				A3(
+				author$project$Main$monsterView,
+				1,
+				20,
+				_Utils_Tuple2(20, 5)),
+				A3(
+				author$project$Main$monsterView,
+				2,
+				20,
+				_Utils_Tuple2(40, 5)),
+				A3(
+				author$project$Main$monsterView,
+				3,
+				20,
+				_Utils_Tuple2(60, 5))
 			]));
 };
 var elm$browser$Browser$External = function (a) {
@@ -5179,6 +5110,20 @@ var elm$core$Task$Perform = function (a) {
 };
 var elm$core$Task$succeed = _Scheduler_succeed;
 var elm$core$Task$init = elm$core$Task$succeed(_Utils_Tuple0);
+var elm$core$List$map = F2(
+	function (f, xs) {
+		return A3(
+			elm$core$List$foldr,
+			F2(
+				function (x, acc) {
+					return A2(
+						elm$core$List$cons,
+						f(x),
+						acc);
+				}),
+			_List_Nil,
+			xs);
+	});
 var elm$core$Task$andThen = _Scheduler_andThen;
 var elm$core$Task$map = F2(
 	function (func, taskA) {
