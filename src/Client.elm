@@ -55,7 +55,7 @@ type alias Model =
 
 playerWidth : Float
 playerWidth =
-    20
+    8
 
 
 init : () -> ( Model, Cmd Msg )
@@ -63,6 +63,7 @@ init flags =
     ( { players =
             List.repeat 4
                 { x = 50 - playerWidth / 2
+                , angle = 0.0
                 , left = False
                 , right = False
                 , shoot = False
@@ -77,6 +78,7 @@ init flags =
 
 type alias Player =
     { x : Float
+    , angle : Float
     , left : Bool
     , right : Bool
     , shoot : Bool
@@ -145,19 +147,33 @@ tickPlayer dt player =
     let
         dx =
             dt / 30
-    in
-    { player
-        | x =
+
+        da =
+            dt / 10
+
+        ( x, angle ) =
             case ( player.left, player.right ) of
                 ( True, False ) ->
-                    max -(playerWidth / 2) (player.x - dx)
+                    ( max -(playerWidth / 2) (player.x - dx)
+                    , max -25 (player.angle - da)
+                    )
 
                 ( False, True ) ->
-                    min (100 - playerWidth / 2) (player.x + dx)
+                    ( min (100 - playerWidth / 2) (player.x + dx)
+                    , min 25 (player.angle + da)
+                    )
 
                 _ ->
-                    player.x
-    }
+                    ( player.x
+                    , if player.angle > 0 then
+                        player.angle - da
+                      else if player.angle < 0 then
+                        player.angle + da
+                      else
+                        player.angle
+                    )
+    in
+    { player | x = x, angle = angle }
         |> withNoCmd
 
 
@@ -189,17 +205,40 @@ monsterView n width ( x, y ) =
         []
 
 
+shipView : Int -> Float -> ( Float, Float ) -> Float -> Svg msg
+shipView n width ( x, y ) rotation =
+    let
+        dx =
+            String.fromFloat (x + playerWidth / 2)
+
+        dy =
+            String.fromFloat (y + playerWidth / 2)
+    in
+    Svg.image
+        [ Svg.xlinkHref ("/res/ship/" ++ String.fromInt n ++ ".png")
+        , Svg.transform
+            ("rotate(" ++ String.fromFloat rotation ++ " " ++ dx ++ " " ++ dy ++ ")")
+        , Svg.x (String.fromFloat x)
+        , Svg.y (String.fromFloat y)
+        , Svg.width (String.fromFloat width)
+        ]
+        []
+
+
+playerView : Int -> Player -> Svg msg
+playerView n player =
+    shipView n playerWidth ( player.x, 87 ) player.angle
+
+
 view : Model -> Html Msg
 view model =
     let
-        monsters =
-            List.indexedMap
-                (\i p -> monsterView i playerWidth ( p.x, 100 - playerWidth ))
-                model.players
+        players =
+            List.indexedMap playerView model.players
     in
     Svg.svg
         [ Svg.width "100%", Svg.height "100%", Svg.viewBox "0 0 100 100" ]
         ([ Svg.rect [ Svg.fill "gray", Svg.width "100", Svg.height "100" ] []
          ]
-            ++ monsters
+            ++ players
         )
