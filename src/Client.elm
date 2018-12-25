@@ -50,6 +50,7 @@ subscriptions model =
 
 type alias Model =
     { players : List Player
+    , aliens : List Alien
     }
 
 
@@ -58,16 +59,52 @@ playerWidth =
     8
 
 
+initPlayers : List Player
+initPlayers =
+    List.repeat 4
+        { x = 50 - playerWidth / 2
+        , angle = 0.0
+        , left = False
+        , right = False
+        , shoot = False
+        }
+
+
+initAliens : List Alien
+initAliens =
+    let
+        line n monster width vOffset =
+            let
+                spacing =
+                    width * 1.5
+            in
+            List.range 0 (n - 1)
+                |> List.map
+                    (\i ->
+                        { life = 2
+                        , monster = monster
+                        , width = width
+                        , points = 20
+                        , x = toFloat i * spacing
+                        , y = vOffset
+                        , minX = toFloat i * spacing
+                        , maxX = 100 - toFloat (n - i - 1) * spacing - width
+                        , dir = 1
+                        }
+                    )
+    in
+    List.concat
+        [ line 6 0 8 30
+        , line 6 1 8 20
+        , line 6 2 8 10
+        , line 6 3 8 0
+        ]
+
+
 init : () -> ( Model, Cmd Msg )
 init flags =
-    ( { players =
-            List.repeat 4
-                { x = 50 - playerWidth / 2
-                , angle = 0.0
-                , left = False
-                , right = False
-                , shoot = False
-                }
+    ( { players = initPlayers
+      , aliens = initAliens
       }
     , parse
         """
@@ -82,6 +119,19 @@ type alias Player =
     , left : Bool
     , right : Bool
     , shoot : Bool
+    }
+
+
+type alias Alien =
+    { x : Float
+    , y : Float
+    , minX : Float
+    , maxX : Float
+    , dir : Float
+    , life : Int
+    , points : Int
+    , monster : Int
+    , width : Float
     }
 
 
@@ -165,15 +215,34 @@ tickPlayer dt player =
 
                 _ ->
                     ( player.x
-                    , if player.angle > 0 then
+                    , if player.angle > 0.5 then
                         player.angle - da
-                      else if player.angle < 0 then
+                      else if player.angle < -0.5 then
                         player.angle + da
                       else
-                        player.angle
+                        0
                     )
     in
     { player | x = x, angle = angle }
+        |> withNoCmd
+
+
+tickAlien : Float -> Alien -> ( Alien, Cmd Msg )
+tickAlien dt alien =
+    let
+        dx =
+            dt / 200
+
+        dy =
+            dt / 2000
+    in
+    (if alien.x > alien.maxX then
+        { alien | x = alien.x - dx, dir = -1, y = alien.y + dy }
+     else if alien.x < alien.minX then
+        { alien | x = alien.x + dx, dir = 1, y = alien.y + dy }
+     else
+        { alien | x = alien.x + alien.dir * dx, y = alien.y + dy }
+    )
         |> withNoCmd
 
 
@@ -184,9 +253,14 @@ tick dt model =
             model.players
                 |> List.map (tickPlayer dt)
                 |> List.unzip
+
+        ( aliens, cmds_ ) =
+            model.aliens
+                |> List.map (tickAlien dt)
+                |> List.unzip
     in
-    ( { model | players = players }
-    , Cmd.batch cmds
+    ( { model | players = players, aliens = aliens }
+    , Cmd.batch (cmds ++ cmds_)
     )
 
 
@@ -230,9 +304,17 @@ playerView n player =
     shipView n playerWidth ( player.x, 87 ) player.angle
 
 
+alienView : Alien -> Svg msg
+alienView alien =
+    monsterView alien.monster alien.width ( alien.x, alien.y )
+
+
 view : Model -> Html Msg
 view model =
     let
+        monsters =
+            List.map alienView model.aliens
+
         players =
             List.indexedMap playerView model.players
     in
@@ -241,4 +323,5 @@ view model =
         ([ Svg.rect [ Svg.fill "gray", Svg.width "100", Svg.height "100" ] []
          ]
             ++ players
+            ++ monsters
         )

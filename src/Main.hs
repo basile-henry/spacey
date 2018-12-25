@@ -107,14 +107,40 @@ wsapp count chan pending = do
         ([i|{ "index": #{ index }, "button": "#{ btn }", "state": "#{ state }" }|] :: Text)
 
 controller :: Int -> ActionM ()
-controller index = Sc.html [i|
+controller index =
+  let button name = [i|
+        <div id="#{ name }-container" >
+          <img id="#{ name }"
+               src="res/control/#{ name }#{ index }.png"
+               onpointerdown=pointerDown("#{ name }")
+               onpointerup=pointerUp("#{ name }")
+               onpointercancel=pointerUp("#{ name }")
+               oncontextmenu="return false"
+               />
+        </div>
+        |]
+  in Sc.html [i|
 <!DOCTYPE html>
 <html>
   <head>
     <title>Spacey Control</title>
     <style>
-      body { display: flex; }
-      div { flex: 1; }
+      body {
+        display: flex;
+        background: lightgray;
+      }
+      #left-container {
+        flex: 3;
+        padding-top: 7%;
+      }
+      #shoot-container {
+        flex: 2.5;
+        padding-top: 5%;
+      }
+      #right-container {
+        flex: 3;
+        padding-top: 7%;
+      }
       img { width: 100%; }
     </style>
     <script language="javascript">
@@ -129,36 +155,22 @@ controller index = Sc.html [i|
 
       function pointerUp(btn) {
         send(btn, "up");
+        document.getElementById(btn).src =
+          "res/control/" + btn + "#{ index }.png";
       };
 
       function pointerDown(btn) {
         send(btn, "down");
+        document.getElementById(btn).src =
+          "res/control/" + btn + "#{ index }pressed.png";
       };
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
   </head>
   <body>
-    <div>
-      <img src="res/left.png"
-           ontouchstart=pointerDown("left")
-           ontouchend=pointerUp("left")
-           ontouchcancel=pointerUp("left")
-           oncontextmenu="return false"
-           /></div>
-    <div>
-      <img src="res/shoot.png"
-           ontouchstart=pointerDown("shoot")
-           ontouchend=pointerUp("shoot")
-           ontouchcancel=pointerUp("shoot")
-           oncontextmenu="return false"
-           /></div>
-    <div>
-      <img src="res/right.png"
-           ontouchstart=pointerDown("right")
-           ontouchend=pointerUp("right")
-           ontouchcancel=pointerUp("right")
-           oncontextmenu="return false"
-           /></div>
+      #{ button "left" }
+      #{ button "shoot" }
+      #{ button "right" }
   </body>
 </html>
 |]
