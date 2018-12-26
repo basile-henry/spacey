@@ -114,7 +114,7 @@ controller index =
                src="res/control/#{ name }#{ index }.png"
                onpointerdown=pointerDown("#{ name }")
                onpointerup=pointerUp("#{ name }")
-               onpointercancel=pointerUp("#{ name }")
+               ontouchend=pointerUp("#{ name }")
                oncontextmenu="return false"
                />
         </div>

@@ -4,9 +4,8 @@ import Browser
 import Browser.Events
 import Cmd.Extra exposing (withCmd, withNoCmd)
 import Control
-import Html exposing (Html, a, button, div, h1, input, p, text)
-import Html.Attributes exposing (href, size, value)
-import Html.Events exposing (onClick, onInput)
+import Html exposing (Html)
+import Html.Attributes as Html
 import Json.Decode as Json
 import Json.Encode exposing (Value, encode)
 import List.Extra as List
@@ -51,6 +50,8 @@ subscriptions model =
 type alias Model =
     { players : List Player
     , aliens : List Alien
+    , projectiles : List Projectile
+    , explosions : List Explosion
     }
 
 
@@ -59,15 +60,25 @@ playerWidth =
     8
 
 
+projectileLength : Float
+projectileLength =
+    5
+
+
 initPlayers : List Player
 initPlayers =
-    List.repeat 4
-        { x = 50 - playerWidth / 2
-        , angle = 0.0
-        , left = False
-        , right = False
-        , shoot = False
-        }
+    List.range 0 3
+        |> List.map
+            (\i ->
+                { x = 20 + toFloat i * 20 - playerWidth / 2
+                , angle = 0.0
+                , left = False
+                , right = False
+                , shoot = False
+                , score = 0
+                , reload = 0.0
+                }
+            )
 
 
 initAliens : List Alien
@@ -105,6 +116,8 @@ init : () -> ( Model, Cmd Msg )
 init flags =
     ( { players = initPlayers
       , aliens = initAliens
+      , projectiles = []
+      , explosions = []
       }
     , parse
         """
@@ -119,6 +132,8 @@ type alias Player =
     , left : Bool
     , right : Bool
     , shoot : Bool
+    , score : Int
+    , reload : Float
     }
 
 
@@ -132,6 +147,22 @@ type alias Alien =
     , points : Int
     , monster : Int
     , width : Float
+    }
+
+
+type alias Projectile =
+    { x : Float
+    , y : Float
+    , player : Int
+    }
+
+
+type alias Explosion =
+    { x : Float
+    , y : Float
+    , width : Float
+    , frameTime : Float
+    , frame : Int
     }
 
 
@@ -192,8 +223,8 @@ update msg model =
                         |> withNoCmd
 
 
-tickPlayer : Float -> Player -> ( Player, Cmd Msg )
-tickPlayer dt player =
+tickPlayer : Float -> Int -> Player -> ( Player, Maybe Projectile )
+tickPlayer dt n player =
     let
         dx =
             dt / 30
@@ -222,12 +253,25 @@ tickPlayer dt player =
                       else
                         0
                     )
+
+        ( projectile, reload ) =
+            if player.shoot && player.reload == 0 then
+                ( Just
+                    { x = player.x + playerWidth / 2
+                    , y = 87 + playerWidth / 2
+                    , player = n
+                    }
+                , 1000
+                )
+            else
+                ( Nothing, max 0.0 (player.reload - dt) )
     in
-    { player | x = x, angle = angle }
-        |> withNoCmd
+    ( { player | x = x, angle = angle, reload = reload }
+    , projectile
+    )
 
 
-tickAlien : Float -> Alien -> ( Alien, Cmd Msg )
+tickAlien : Float -> Alien -> Alien
 tickAlien dt alien =
     let
         dx =
@@ -236,32 +280,179 @@ tickAlien dt alien =
         dy =
             dt / 2000
     in
-    (if alien.x > alien.maxX then
+    if alien.x > alien.maxX then
         { alien | x = alien.x - dx, dir = -1, y = alien.y + dy }
-     else if alien.x < alien.minX then
+    else if alien.x < alien.minX then
         { alien | x = alien.x + dx, dir = 1, y = alien.y + dy }
-     else
+    else
         { alien | x = alien.x + alien.dir * dx, y = alien.y + dy }
-    )
+
+
+tickProjectile : Float -> Projectile -> Projectile
+tickProjectile dt projectile =
+    let
+        dy =
+            dt / 30
+    in
+    { projectile | y = projectile.y - dy }
+
+
+tickExplosion : Float -> Explosion -> Maybe Explosion
+tickExplosion dt explosion =
+    let
+        frameTime_ =
+            explosion.frameTime + dt / 1000
+
+        ( frame, frameTime ) =
+            if frameTime_ > 0.3 then
+                ( explosion.frame + 1
+                , 0.0
+                )
+            else
+                ( explosion.frame
+                , frameTime_
+                )
+    in
+    if frame == 3 then
+        Nothing
+    else
+        Just
+            { explosion
+                | frameTime = frameTime
+                , frame = frame
+            }
+
+
+tick : Float -> Model -> ( Model, Cmd msg )
+tick dt model =
+    let
+        ( players, newProjectiles ) =
+            model.players
+                |> List.indexedMap (tickPlayer dt)
+                |> List.unzip
+
+        aliens =
+            List.map (tickAlien dt) model.aliens
+
+        projectiles =
+            List.map (tickProjectile dt) model.projectiles
+                ++ List.filterMap identity newProjectiles
+
+        explosions =
+            List.filterMap (tickExplosion dt) model.explosions
+    in
+    handleCollisions
+        { model
+            | players = players
+            , aliens = aliens
+            , projectiles = projectiles
+            , explosions = explosions
+        }
         |> withNoCmd
 
 
-tick : Float -> Model -> ( Model, Cmd Msg )
-tick dt model =
-    let
-        ( players, cmds ) =
-            model.players
-                |> List.map (tickPlayer dt)
-                |> List.unzip
+handleCollisions : Model -> Model
+handleCollisions model =
+    List.foldr
+        handleCollision
+        { model | projectiles = [] }
+        model.projectiles
 
-        ( aliens, cmds_ ) =
-            model.aliens
-                |> List.map (tickAlien dt)
-                |> List.unzip
+
+type Hit
+    = NoHit
+    | Hit
+    | FinalHit Int Alien
+    | Out
+
+
+handleCollision :
+    Projectile
+    -> Model
+    -> Model
+handleCollision projectile model =
+    let
+        bottom =
+            projectile.y + projectileLength
+
+        collision alien ( aliens, hit ) =
+            case hit of
+                NoHit ->
+                    let
+                        xCheck =
+                            projectile.x >= alien.x && projectile.x <= alien.x + alien.width
+
+                        -- Assume projectile is smaller then aliens
+                        -- and aliens are square
+                        projTop =
+                            projectile.y >= alien.y && projectile.y <= alien.y + alien.width
+
+                        projBottom =
+                            bottom >= alien.y && bottom <= alien.y + alien.width
+
+                        yCheck =
+                            projTop || projBottom
+                    in
+                    if xCheck && yCheck then
+                        if alien.life == 1 then
+                            ( aliens
+                            , FinalHit projectile.player alien
+                            )
+                        else
+                            ( { alien | life = alien.life - 1 } :: aliens
+                            , Hit
+                            )
+                    else
+                        ( alien :: aliens, hit )
+
+                _ ->
+                    ( alien :: aliens, hit )
+
+        ( aliens_, hit_ ) =
+            List.foldr collision ( [], NoHit ) model.aliens
+
+        players =
+            case hit_ of
+                FinalHit n alien ->
+                    List.update
+                        n
+                        (\p -> { p | score = p.score + alien.points })
+                        model.players
+
+                _ ->
+                    model.players
+
+        projectiles =
+            case hit_ of
+                NoHit ->
+                    projectile :: model.projectiles
+
+                _ ->
+                    model.projectiles
+
+        explosions =
+            case hit_ of
+                FinalHit _ alien ->
+                    { x = alien.x
+                    , y = alien.y
+                    , width = alien.width
+                    , frameTime = 0.0
+                    , frame = 0
+                    }
+                        :: model.explosions
+
+                _ ->
+                    model.explosions
     in
-    ( { model | players = players, aliens = aliens }
-    , Cmd.batch (cmds ++ cmds_)
-    )
+    if bottom < 0 then
+        model
+    else
+        { model
+            | players = players
+            , aliens = aliens_
+            , projectiles = projectiles
+            , explosions = explosions
+        }
 
 
 
@@ -299,6 +490,35 @@ shipView n width ( x, y ) rotation =
         []
 
 
+explosionView : Explosion -> Svg msg
+explosionView explosion =
+    let
+        width =
+            case explosion.frame of
+                0 ->
+                    explosion.width / 2
+
+                1 ->
+                    explosion.width * 3 / 4
+
+                _ ->
+                    explosion.width
+
+        x =
+            explosion.x + explosion.width / 2 - width / 2
+
+        y =
+            explosion.y + explosion.width / 2 - width / 2
+    in
+    Svg.image
+        [ Svg.xlinkHref ("/res/explosion/" ++ String.fromInt explosion.frame ++ ".png")
+        , Svg.x (String.fromFloat x)
+        , Svg.y (String.fromFloat y)
+        , Svg.width (String.fromFloat width)
+        ]
+        []
+
+
 playerView : Int -> Player -> Svg msg
 playerView n player =
     shipView n playerWidth ( player.x, 87 ) player.angle
@@ -309,19 +529,95 @@ alienView alien =
     monsterView alien.monster alien.width ( alien.x, alien.y )
 
 
-view : Model -> Html Msg
-view model =
+projectileView : Projectile -> Svg msg
+projectileView projectile =
+    let
+        color =
+            case projectile.player of
+                0 ->
+                    "#63cf76"
+
+                1 ->
+                    "#d76464"
+
+                2 ->
+                    "#59a3dc"
+
+                _ ->
+                    "#f4e047"
+    in
+    Svg.rect
+        [ Svg.x (String.fromFloat (projectile.x - 0.5))
+        , Svg.y (String.fromFloat projectile.y)
+        , Svg.width "1"
+        , Svg.height (String.fromFloat projectileLength)
+        , Svg.rx "0.5"
+        , Svg.ry "0.5"
+        , Svg.fill color
+        ]
+        []
+
+
+gameView : Model -> Html Msg
+gameView model =
     let
         monsters =
             List.map alienView model.aliens
 
         players =
             List.indexedMap playerView model.players
+
+        projectiles =
+            List.map projectileView model.projectiles
+
+        explosions =
+            List.map explosionView model.explosions
     in
     Svg.svg
         [ Svg.width "100%", Svg.height "100%", Svg.viewBox "0 0 100 100" ]
         ([ Svg.rect [ Svg.fill "gray", Svg.width "100", Svg.height "100" ] []
          ]
-            ++ players
             ++ monsters
+            ++ projectiles
+            ++ explosions
+            ++ players
         )
+
+
+scoreView : Model -> Html msg
+scoreView model =
+    let
+        viewHelper n score =
+            Html.div
+                [ Html.style "flex" "1"
+                , Html.style "display" "flex"
+                ]
+                [ Html.div
+                    [ Html.style "font-family" "Open Sans"
+                    , Html.style "font-size" "2em"
+                    , Html.style "text-align" "right"
+                    , Html.style "flex" "1"
+                    ]
+                    [ Html.text <| String.fromInt score
+                    ]
+                , Html.div [ Html.style "flex" "0.1" ] []
+                , Html.img
+                    [ Html.style "height" "3em"
+                    , Html.src ("/res/ship/" ++ String.fromInt n ++ ".png")
+                    ]
+                    []
+                ]
+
+        scores =
+            List.indexedMap (\n p -> viewHelper n p.score) model.players
+    in
+    Html.div [ Html.style "display" "flex" ] scores
+
+
+view : Model -> Html Msg
+view model =
+    Html.div
+        []
+        [ gameView model
+        , scoreView model
+        ]
