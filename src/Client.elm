@@ -572,12 +572,19 @@ gameView model =
 
         explosions =
             List.map explosionView model.explosions
+
+        background =
+            Svg.image
+                [ Svg.xlinkHref "/res/background.jpg"
+                , Svg.width "100"
+                , Svg.height "100"
+                ]
+                []
     in
     Svg.svg
         [ Svg.width "100%", Svg.height "100%", Svg.viewBox "0 0 100 100" ]
-        ([ Svg.rect [ Svg.fill "gray", Svg.width "100", Svg.height "100" ] []
-         ]
-            ++ monsters
+        (background
+            :: monsters
             ++ projectiles
             ++ explosions
             ++ players
@@ -593,8 +600,7 @@ scoreView model =
                 , Html.style "display" "flex"
                 ]
                 [ Html.div
-                    [ Html.style "font-family" "Open Sans"
-                    , Html.style "font-size" "2em"
+                    [ Html.style "font-size" "2em"
                     , Html.style "text-align" "right"
                     , Html.style "flex" "1"
                     ]
@@ -616,8 +622,29 @@ scoreView model =
 
 view : Model -> Html Msg
 view model =
+    let
+        title =
+            Html.div
+                [ Html.style "display" "flex"
+                , Html.style "flex-direction" "row"
+                ]
+                [ Html.h1
+                    []
+                    [ Html.text "Spacey" ]
+                , Html.div
+                    [ Html.style "text-align" "right"
+                    , Html.style "flex" "1"
+                    , Html.style "display" "flex"
+                    , Html.style "flex-direction" "column"
+                    ]
+                    [ Html.div [ Html.style "flex" "1" ] []
+                    , Html.h3 [] [ Html.text "By Bénédicte & Basile Henry" ]
+                    ]
+                ]
+    in
     Html.div
-        []
-        [ gameView model
+        [ Html.style "font-family" "Open Sans" ]
+        [ title
+        , gameView model
         , scoreView model
         ]
