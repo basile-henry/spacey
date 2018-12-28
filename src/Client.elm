@@ -625,21 +625,18 @@ view model =
     let
         title =
             Html.div
-                [ Html.style "display" "flex"
-                , Html.style "flex-direction" "row"
+                [ Html.style "height" "3.5em"
+                , Html.style "position" "relative"
                 ]
                 [ Html.h1
                     []
                     [ Html.text "Spacey" ]
                 , Html.div
-                    [ Html.style "text-align" "right"
-                    , Html.style "flex" "1"
-                    , Html.style "display" "flex"
-                    , Html.style "flex-direction" "column"
+                    [ Html.style "position" "absolute"
+                    , Html.style "right" "0px"
+                    , Html.style "bottom" "0px"
                     ]
-                    [ Html.div [ Html.style "flex" "1" ] []
-                    , Html.h3 [] [ Html.text "By Bénédicte & Basile Henry" ]
-                    ]
+                    [ Html.h3 [] [ Html.text "By Bénédicte & Basile Henry" ] ]
                 ]
     in
     Html.div
