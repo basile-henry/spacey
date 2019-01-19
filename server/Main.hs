@@ -4,7 +4,6 @@
 
 module Main where
 
-import           Control.Concurrent
 import           Control.Monad
 import           Control.Monad.IO.Class
 import           Control.Monad.STM
@@ -19,7 +18,6 @@ import           Control.Exception
 import           Data.IORef
 import           System.IO
 
-import qualified Network.Wai                          as Wai
 import qualified Network.Wai.Handler.Warp             as Warp
 import qualified Network.Wai.Handler.WebSockets       as WaiWs
 import qualified Network.Wai.Middleware.Gzip          as Wai
@@ -92,7 +90,7 @@ scottyApp countRef chan = do
   Sc.get "/favicon.ico" $ pure ()
 
 wsapp :: IORef Int -> TChan Control -> WS.ServerApp
-wsapp count chan pending = do
+wsapp _count chan pending = do
   Text.putStrLn "ws connected"
   conn <- WS.acceptRequest pending
 
@@ -108,7 +106,8 @@ wsapp count chan pending = do
 
 controller :: Int -> ActionM ()
 controller index =
-  let button name = [i|
+  let button :: Text -> Text
+      button name = [i|
         <div id="#{ name }-container" >
           <img id="#{ name }"
                src="res/control/#{ name }#{ index }.png"

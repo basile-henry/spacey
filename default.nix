@@ -1,6 +1,11 @@
-{ nixpkgs ? import <nixpkgs> {}, compiler ? "ghc844" }:
+let
+  nixpkgs = import ./nixpkgs.nix;
 
-with nixpkgs.pkgs.haskell;
+  server = import ./server/default.nix { inherit nixpkgs; };
+  client = import ./client/default.nix { inherit nixpkgs; };
 
-lib.failOnAllWarnings (packages.${compiler}.callCabal2nix "server" ./.  {
-})
+  run-spacey =
+    nixpkgs.pkgs.writeScript "run-spacey.sh"
+      "cd ${client} && ${server}/bin/server";
+
+in run-spacey

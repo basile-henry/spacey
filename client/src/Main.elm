@@ -183,16 +183,12 @@ update msg model =
             tick dt model
 
         Process value ->
-            model
-                |> Debug.log ("Process: " ++ encode 0 value)
-                |> withCmd (cmdPort value)
+            withCmd (cmdPort value) model
 
         Receive value ->
             case Control.control value of
-                Err err ->
-                    model
-                        |> Debug.log (Json.errorToString err)
-                        |> withNoCmd
+                Err _ ->
+                    withNoCmd model
 
                 Ok ctrl ->
                     let
